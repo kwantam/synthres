@@ -7,11 +7,11 @@
 
 my $unit = $ARGV[0];
 my $res  = $ARGV[1];
-my $precision = $ARGV[2] || 1e-2;
+my $precision = $ARGV[2] || 1e-6;
 
 unless ($unit && $res)
 {
-        print "Usage: $0 <unit> <resistance>\n";
+        print "Usage:\n$0 <unit> <resistance> [precision]\n\tunit and resistance are required, precision defaults to 1e-6\n";
         exit(-1);
 }
 
