@@ -1,32 +1,24 @@
 
+{--
+# 
+# Synthesize an arbitrary resistance from a base unit
+# Eventually this could also give mean and variance numbers
+#
+# synthres is free software.  It comes without any warranty, to
+# to the extent permitted by applicable law.  You can redistribute it
+# and/or modify it under the terms of the Do What The Fuck You Want To
+# Public License, Version 2, as published by Sam Hocevar.  See
+# http://sam.zoy.org/wtfpl/COPYING for more details
+#
+--}
+
+module Main where
+
 import Data.List
 import Data.Maybe
 import System.IO.Unsafe (unsafePerformIO)
 import Control.Parallel.Strategies (parMap,rdeepseq)
 import Control.DeepSeq (rnf,NFData)
-
-{--
-
- 2: 2 1/2
- 3: 3 2/3 1/3
- 4: 4 1 3/4 1/2
- 5: 5 6/5 4/5 1/5
- 6: 6 9/6 8/6 5/6
- 7: 7 12/7 10/7 6/7
- 8: 8 2 15/8 12/8 7/8
- 9: 9 20/9 18/9 14/9 8/9
-10: 10 25/10 24/10 21/10 16/10 9/10
-
-n par
-n-2 par || 2 ser
-n-3 par || 3 ser
-n-4 par || 2 ser || 2 ser
-n-5 par || 2 ser || 3 ser
-n-6 par || 2 ser || 4 ser
-n-6 par || 3 ser || 3 ser
-n-7 par || 
-
---}
 
 data ResNet t = NilRes
               | ResM t
