@@ -58,12 +58,13 @@ synthBasic iR err isPar
         nErr = if isPar            -- compute next error bounds
                 then iR / rR / err
                 else rR / iR / err
-        nNet = case (fR,isPar) of
-                (0,_    ) -> NilRes
-                (_,True ) -> IntP $ take (round fR) $ repeat 1
-                (_,False) -> ResM fR
+        nNet = case (fR,isPar,fR>=err) of
+                (0,_    ,_    ) -> NilRes
+                --(_,True ,True ) -> NilRes
+                (_,True ,_    ) -> IntP $ take (round fR) $ repeat 1
+                (_,False,_    ) -> ResM fR
         rCons = if isPar then PRes else SRes
-        rNet = if rR == 0 || ( isPar && rR >= err) || ( (not isPar) && rR <= err )
+        rNet = if rR == 0 || ( isPar && fR >= err) || ( (not isPar) && rR <= err )
                 then NilRes
                 else synthBasic (1/rR) nErr (not isPar)
 
@@ -112,14 +113,16 @@ sRHlp nR iErr bound isPar
                 nErr = if isPar
                         then nR / nnR / iErr
                         else nnR / nR / iErr
-                nNet = case (wnR,isPar) of
-                        (0,_    ) -> n
-                        (_,True ) -> PRes (IntP $ take (round wnR) $ repeat 1,n)
-                        (_,False) -> SRes (ResM wnR,n)
-                rNet = if nnR == 0 || ( isPar && nnR >= iErr ) || ( (not isPar) && nnR <= iErr )
+                nNet = case (wnR,isPar,wnR>=iErr) of
+                        (0,_    ,_    ) -> n
+                        --(_,True ,_    ) -> n
+                        (_,True ,_    ) -> PRes (IntP $ take (round wnR) $ repeat 1,n)
+                        (_,False,_    ) -> SRes (ResM wnR,n)
+                rNet = if nnR == 0 || ( isPar && wnR >= iErr ) || ( (not isPar) && nnR <= iErr )
                         then Just NilRes
                         else sRHlp (1/nnR) nErr (bound - netSize n) (not isPar)
         pCands = concatMap genRes [1..bound]
         pResults = catMaybes $ parMap rdeepseq testCand pCands
         lResult = minimumBy compNet $ bNet : pResults
 
+main = putStrLn (show $ synthRes 1.21 1 1e-6)
