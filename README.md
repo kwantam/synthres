@@ -27,7 +27,7 @@ The above is guaranteed to converge on *some* value, but not necessarily an opti
 
 So, how do we go about finding more optimal values for R? Certainly, the above algorithm gives an upper bound on the number of resistors necessary; from there, we can imagine generating various series-parallel combinations of resistors using up to the bounding value.
 
-The set of "simple" series-parallel combinations of *n* resistors---that is, the combinations that can be created by connecting series strings in parallel---is identical to the set of integer partitions of *n*, where the addition operator is replaced by the parallel operator.  For example, if *n*=4, the partitions are
+The set of "simple" series-parallel combinations of *n* resistors---that is, the combinations that can be created by connecting series strings in parallel---is identical to the set of integer partitions of *n*, where the addition operator is replaced by the parallel operator; let's call such networks *partition networks*.  For example, if *n*=4, the partitions are:
 
     4
     3+1
@@ -35,7 +35,7 @@ The set of "simple" series-parallel combinations of *n* resistors---that is, the
     2+1+1
     1+1+1+1
 
-Thus, the simple combinations are
+Thus, the partition networks are:
 
     4          = 4
     3||1       = 3/4
@@ -43,11 +43,11 @@ Thus, the simple combinations are
     2||1||1    = 2/5
     1||1||1||1 = 1/4
 
-In fact, none of the partition networks of 4 are any more optimal than the networks given by the algorithm in the previous section, but partition networks for larger numbers can be smaller than their algorithmically generated counterparts (e.g., R/R*u*=6/5 listed above).
+None of the partition networks of 4 are any more optimal than the networks given by the algorithm in the previous section, but partition networks for larger numbers can be smaller than their algorithmically generated counterparts (e.g., R/R*u*=6/5 listed above).
 
-Given that we can generate bounded sets of these possibly-optimal networks, we can easily check whether they produce a better result than the naive algorithm: first, generate a bound on the network, and then successively test candidates from the set of partition networks until we find something better than the naive result. If we don't, just return that instead. Obviously, this becomes a recursive problem: if I'm trying to make R/R*u*=3.9, I can add together several smaller networks, e.g., 2/5 + 3 + 1/2, which implements in 9 resistors what the naive algorithm makes in 13 (3 + 1||9).
+Given that we can generate bounded sets of candidate optimizations for our resistor network, we can easily check whether they produce a better result than the naive algorithm: first, generate a bound on the network, and then successively test candidates from the set of partition networks until we find something better than the naive result. If we don't, just return that instead. Obviously, this becomes a recursive problem: if I'm trying to make R/R*u*=3.9, I can add together several smaller networks, e.g., 2/5 + 3 + 1/2, which implements in 9 resistors what the naive algorithm makes in 13 (3 + 1||9).
 
-The number of partitions of *n* grows rather fast: e^sqrt(n) per [Wolfram Mathworld](http://mathworld.wolfram.com/PartitionFunctionP.html). However, we can usually reduce this number substantially by noting that the largest-valued partition network of *n* resistors has value less than or equal to *n*/4 (for even numbers, it is exactly *n*/4; for odd numbers, it's (*n*^2-1)/(4*n*)). Thus, if the resistance value we're trying to synthesize is greater than *n*/4, we can immediately pull out most of the resistance as a series network and only optimize the remainder. Note that this only works for *resistance* synthesis: the maximum *conductance* that can be synthesized from a partition network of *n* resistors is *n*, so the only optimization we can do is to note that we can never synthesize a larger conductance that the upper bound on the number of resistors.
+The number of partitions of *n* grows rather fast: e^sqrt(n) per [Wolfram Mathworld](http://mathworld.wolfram.com/PartitionFunctionP.html). However, we can usually reduce this number substantially by noting that the largest-valued nontrivial partition network of *n* resistors has value less than or equal to *n*/4 (for even numbers, it is exactly *n*/4; for odd numbers, it's (*n*^2-1)/(4*n*)). Thus, if the resistance value we're trying to synthesize is greater than *n*/4, we can immediately pull out most of the resistance as a series network and only optimize the remainder. Note that this only works for *resistance* synthesis: the maximum *conductance* that can be synthesized from a partition network of *n* resistors is *n*, so the only optimization we can do is to note that we can never synthesize a larger conductance that the upper bound on the number of resistors.
 
 ## How to use it
 
@@ -68,10 +68,10 @@ Read this as above: 4 resistors in series with the parallel combination of two r
 
     $ make
     ...stuff...
-    $ build/synthres 5 4
-    SRes (ResM (1 % 1),IntP [1 % 1,1 % 1,1 % 1,1 % 1])
-    5
-    5 % 4
+    $ build/synthres 2000 8700
+    SRes (SRes (PRes (SRes (IntP [2 % 1,1 % 1],IntP [1 % 1,1 % 1]),IntP [1 % 1,1 % 1]),SRes (ResM (2 % 1),IntP [1 % 1])),ResM (1 % 1))
+    11
+    87 % 20
 
 The user interface isn't really all that well developed at the moment. Adjust as you see fit.
 

@@ -173,8 +173,8 @@ sRHlp nR iErr bound isPar
 
 -- quick commandline interface
 main = do
-    [d,e] <- map (toRational.read) `fmap` getArgs
-    let g = synthRes d e 1e-6
+    [u,r] <- map (toRational.read) `fmap` getArgs
+    let g = synthRes r u 1e-6
     putStrLn $ (show.simplifyNet) g
     putStrLn $ (show.netSize) g
     putStrLn.show $ netValue g
