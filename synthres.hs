@@ -51,8 +51,8 @@ combNet isPar n1 n2
  | otherwise = SRes ( n1 , n2 )
 
 -- combine Maybe ResNet, ResNet
-combMaybe isPar (Just n1,(n2,v2)) = Just $ combNet isPar n1 n2
-combMaybe _     (Nothing,_)       = Nothing
+combMaybe isPar (Just n1) n2 = Just $ combNet isPar n1 n2
+combMaybe _     Nothing   _  = Nothing
 
 -- perform series-parallel simplification
 simplifyNet (PRes (NilRes,NilRes    )) = NilRes
@@ -136,8 +136,16 @@ synthRes r unit err = if isNothing hlpRes
 
 -- helper for synthRes
 sRHlp nR iErr bound isPar
-  | bound <= 0 = Nothing
-  | nR == 0    = Just NilRes
+  | bound <= 0 = Nothing                -- can't make resistance from nothing
+  | nR > fromIntegral bound = Nothing   -- not enough resistors to make nR
+  | nR == 0    = Just NilRes            -- a zero R or G is just NilRes
+  | (not isPar) &&                      -- The largest partition resistance
+    nR >= 1 + fromIntegral bound / 4 =  -- is bound/4, so just put any excess
+      let nComb = floor $ nR - fromIntegral bound / 4 -- in series; makes bound
+          nCombR = fromIntegral nComb   -- small fast, which is a big speedup.
+          nnR = nR - nCombR             -- This doesn't work when isPar because
+          nErr = iErr * nR / nnR        -- the largest conductance equals bound.
+      in combMaybe False (sRHlp nnR nErr (bound - nComb) False) (ResM nCombR)
   | otherwise  = if netSize lResult > bound then Nothing else Just lResult
   where bNet = synthBasic nR iErr isPar
         testCand (n,vx) = case (compare (nR+iErr) v,compare (nR-iErr) v) of
@@ -145,7 +153,7 @@ sRHlp nR iErr bound isPar
                           (_ ,EQ) -> Just n
                           (GT,LT) -> Just n
                           (LT,LT) -> Nothing
-                          (GT,GT) -> combMaybe isPar (rNet,(nNet,undefined))
+                          (GT,GT) -> combMaybe isPar rNet nNet
           where v = if isPar then 1/vx else vx
                 xRst = nR - v
                 wnR = toRational $ truncate (xRst+iErr)
