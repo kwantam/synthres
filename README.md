@@ -72,6 +72,7 @@ Read this as above: 4 resistors in series with the parallel combination of two r
     SRes (ResM 4,PRes (SRes (IntP [1,2],IntP [1,1]),IntP [1,1]))
     11
     87 % 20 (4.35)
+    E_rel = 0.0
     <svg xmlns=(...etc...)
 
 synthres.hs dumps out three informational lines on stderr and then renders the network on stdout. Here's what the resulting SVG looks like for the above:

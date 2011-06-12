@@ -60,7 +60,11 @@ netToSVG' (SRes (x,y)) = SVGNet width height nSVG                   -- a series 
         yNet = netToSVG' y                                          -- be processed
         width = sWidth xNet + sWidth yNet + 1
         height = max (sHeight xNet) (sHeight yNet)
-        nSVG = sData xNet ++ " h" ++ show sUWidth ++ sData yNet
+        wid = quot sUWidth 3
+        wdl = sUWidth - 2 * wid
+        wd1 = " h" ++ show wid ++ " "
+        wd2 = " h" ++ show wdl ++ " "
+        nSVG = wd1 ++ sData xNet ++ wd1 ++ sData yNet ++ wd2
 netToSVG' (PRes (x,y)) = SVGNet width height nSVG                   -- a parallel connection of
   where xNet = netToSVG' x                                          -- elements that must first
         yNet = netToSVG' y                                          -- be processed
@@ -82,9 +86,11 @@ mkConn width height = vline ++
 -- normalize the width of an element by adding a wire
 -- that elongates the element until it is the specified
 -- width
-normW width sNet = sData sNet ++ hl
+normW width sNet = h1 ++ sData sNet ++ h2
   where wid = sUWidth * (width - sWidth sNet)
-        hl = if wid == 0 then "" else "h" ++ show wid
+        wd2 = quot wid 2
+        h1 = if wid == 0 then "" else " h" ++ show wd2 ++ " "
+        h2 = if wid == 0 then "" else " h" ++ show (wid - wd2) ++ " "
 
 -- unit sizes, plus margin around the outside of the SVG
 sUHeight = 36
