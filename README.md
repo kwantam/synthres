@@ -67,15 +67,16 @@ Read this as above: 4 resistors in series with the parallel combination of two r
 ### synthres.hs
 
     $ make
-    ...stuff...
+    (...stuff...)
     $ build/synthres 2000 8700
-    SRes (SRes (PRes (SRes (IntP [2 % 1,1 % 1],IntP [1 % 1,1 % 1]),IntP [1 % 1,1 % 1]),SRes (ResM (2 % 1),IntP [1 % 1])),ResM (1 % 1))
+    SRes (ResM 4,PRes (SRes (IntP [1,2],IntP [1,1]),IntP [1,1]))
     11
-    87 % 20
+    87 % 20 (4.35)
+    <svg xmlns=(...etc...)
 
-The user interface isn't really all that well developed at the moment. Adjust as you see fit.
+synthres.hs dumps out three informational lines on stderr and then renders the network on stdout. Here's what the resulting SVG looks like for the above:
 
-I plan to eventually have synthres.hs generate an image of the resulting network.
+![8.7k resistor, optimized](https://github.com/kwantam/synthres/raw/master/8.7kres_optimized.gif)
 
 ## License
 

@@ -1,6 +1,7 @@
 
 GHC_OPTS = -O6 -threaded --make -outputdir build
 PROF_OPTS =
+SOURCE_FILES = $(wildcard *.hs)
 
 .PHONY : all, profile, clean, force
 
@@ -12,7 +13,7 @@ profile : clean build/synthres
 clean :
 	rm -rf build
 
-build/% : %.hs
+build/% : %.hs $(SOURCE_FILES)
 	mkdir -p build
 	ghc $(GHC_OPTS) $(PROF_OPTS) -o $@ $<
 
