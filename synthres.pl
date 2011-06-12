@@ -13,11 +13,11 @@
 
 my $unit = $ARGV[0];
 my $res  = $ARGV[1];
-my $precision = $ARGV[2] || 1e-6;
+my $precision = $ARGV[2] || 1e-3;
 
 unless ($unit && $res)
 {
-    print "Usage:\n$0 <unit> <resistance> [precision]\n\tunit and resistance are required, precision defaults to 1e-6\n";
+    print "Usage:\n$0 <unit> <resistance> [precision]\n\tunit and resistance are required, precision defaults to 0.1%\n";
     exit(-1);
 }
 
@@ -34,8 +34,14 @@ sub calcres()
 
     for ($i=0;;$i++)
     {
-        $whole = int($norm+$prec);
-        $norm = abs($norm - $whole);
+        if (int($norm+$prec) != int($norm)) {
+            $whole = int($norm) + 1;
+            $norm = 0;
+        } else {
+            $whole = int($norm);
+            $norm = $norm - $whole;
+        }
+
         push @result, $whole;
 
         last if ($norm<=$prec);

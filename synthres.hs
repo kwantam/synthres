@@ -44,15 +44,16 @@ genRes n = zip rNets rVals
 synthBasic iR err isPar
  | iR == 0   = NilRes
  | otherwise = rCons (nNet, rNet)
-  where fR = truncate (iR+err)
-        rR = abs $ iR - fromIntegral fR
+  where (fR,rR) = if truncate (iR + err) /= truncate iR
+                   then (ceiling iR,0)
+                   else properFraction iR
         nErr = err * iR / rR
         nNet = case (fR,isPar) of
                 (0,_    ) -> NilRes
                 (_,True ) -> IntP $ replicate fR 1
                 (_,False) -> ResM fR
         rCons = if isPar then PRes else SRes
-        rNet = if rR == 0 || rR <= err
+        rNet = if rR <= err
                 then NilRes
                 else synthBasic (1/rR) nErr (not isPar)
 
@@ -89,14 +90,15 @@ sRHlp nR iErr bound isPar
                           (GT,GT) -> combMaybe isPar rNet nNet
           where v = if isPar then 1/vx else vx
                 xRst = nR - v
-                wnR = truncate (xRst+iErr)
-                nnR = abs $ xRst - fromIntegral wnR
+                (wnR,nnR) = if truncate (xRst+iErr) /= truncate xRst
+                             then (ceiling xRst,0)
+                             else properFraction xRst
                 nErr = iErr * nR / nnR
                 nNet = case (wnR,isPar) of
                         (0,_    ) -> n
                         (_,True ) -> PRes (IntP $ replicate wnR 1,n)
                         (_,False) -> SRes (ResM wnR,n)
-                rNet = if nnR == 0 || nnR <= iErr
+                rNet = if nnR <= iErr
                         then Just NilRes
                         else sRHlp (1/nnR) nErr (bound - netSize n) (not isPar)
         eqResVal (_,x) (_,y) = x == y
@@ -107,10 +109,18 @@ sRHlp nR iErr bound isPar
 -- quick commandline interface
 -- information goes out on stderr, SVG rendition on stdout
 main = do
-    [u,r] <- map (toRational.read) `fmap` getArgs
-    let g = synthRes r u 1e-6
-    hPutStrLn stderr $ (show.simplifyNet) g
-    hPutStrLn stderr $ (show.netSize) g
-    (hPutStrLn stderr) $ show (netValue g :: Rational) ++ " (" ++ show (netValue g :: Double) ++ ")"
-    putStrLn $ netToSVG g r u
+    args <- getArgs
+    if length args < 2
+     then putStrLn "Usage\n  synthres <unit> <resistance> [precision]"
+     else do
+        let u = toRational.read $ args !! 0
+        let r = toRational.read $ args !! 1
+        let p = if length args < 3 then 1e-3 else toRational (read $ args !! 2 :: Double)
+        let g = synthRes r u p
+        let v = netValue g :: Rational
+        hPutStrLn stderr $ (show.simplifyNet) g
+        hPutStrLn stderr $ (show.netSize) g
+        hPutStrLn stderr $ show v
+        hPutStrLn stderr $ ("E_rel = "++).show.fromRational $ (r - v*u) / r
+        putStrLn $ netToSVG g r u
 
