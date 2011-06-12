@@ -76,7 +76,7 @@ Read this as above: 4 resistors in series with the parallel combination of two r
 
 synthres.hs dumps out three informational lines on stderr and then renders the network on stdout. Here's what the resulting SVG looks like for the above:
 
-![8.7k resistor, optimized](https://github.com/kwantam/synthres/raw/master/8.7kres_optimized.gif)
+![8.7k resistor, optimized](https://github.com/kwantam/synthres/raw/master/8.7kres_optimal.gif)
 
 ## License
 
