@@ -16,7 +16,6 @@ module Main where
 import Data.List (nubBy, minimumBy)
 import Data.Maybe (isNothing, fromJust, catMaybes)
 import Control.Parallel.Strategies (parMap,rdeepseq)
-import System.IO.Unsafe (unsafePerformIO)
 import System.Environment (getArgs)
 import IO (hPutStrLn,stderr)
 import ResNetType
