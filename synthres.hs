@@ -16,6 +16,7 @@ module Main where
 import Data.List (nubBy, minimumBy)
 import Data.Maybe (isNothing, fromJust, catMaybes)
 import Control.Parallel.Strategies (parMap,rdeepseq)
+import System.IO.Unsafe (unsafePerformIO)
 import System.Environment (getArgs)
 import IO (hPutStrLn,stderr)
 import ResNetType
@@ -57,16 +58,33 @@ synthBasic iR err isPar
                 then NilRes
                 else synthBasic (1/rR) nErr (not isPar)
 
+-- nubCand is used in synthRes and sRHlp
+nubCand = nubBy eqVal
+  where eqVal (_,x) (_,y) = x == y
+
 -- synthesize a resistor by first generating the basic
 -- synthesis and then searching for a better solution
--- using partitionns of a bounded resistor set
+-- using partitions of a bounded resistor set
 synthRes r unit err = if isNothing hlpRes
                        then bNet
                        else fromJust hlpRes
    where rNorm = r / unit
          bNet = synthBasic rNorm err False
-         bound = netSize bNet
-         hlpRes = sRHlp rNorm err bound False
+         iBound = netSize bNet
+         cBound = 25
+         iCands = nubCand $ (filter (\(_,x) -> x <= rNorm).concat) $
+                            parMap rdeepseq genRes [1..min cBound iBound]
+         cNext (n,vx) = let k = rNorm - vx
+                            nErr = rNorm * err / k
+                            nx = synthBasic k nErr False
+                         in netSize n + netSize nx
+         nVals = parMap rdeepseq cNext iCands
+         kBound = minimum $ iBound : nVals
+         hlpRes = sRHlp rNorm err kBound False
+-- note: we try to estimate a tight bound by taking one step of
+-- the algorithm blindly and finding the best solution so far
+-- this lets us have some chance of converging even for really
+-- annoying ones like synthRes 999 1000 1e-6
 
 -- helper for synthRes
 sRHlp nR iErr bound isPar
@@ -101,8 +119,7 @@ sRHlp nR iErr bound isPar
                 rNet = if nnR <= iErr
                         then Just NilRes
                         else sRHlp (1/nnR) nErr (bound - netSize n) (not isPar)
-        eqResVal (_,x) (_,y) = x == y
-        pCands = nubBy eqResVal $ concat $ parMap rdeepseq genRes [1..bound]
+        pCands = nubCand.concat $ parMap rdeepseq genRes [1..bound]
         pResults = catMaybes $ parMap rdeepseq testCand pCands
         lResult = minimumBy compNet $ bNet : pResults
 
