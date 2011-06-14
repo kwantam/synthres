@@ -15,7 +15,9 @@ module Main where
 
 import Data.List (nubBy, minimumBy)
 import Data.Maybe (isNothing, fromJust, catMaybes)
-import Control.Parallel.Strategies (parMap,rdeepseq)
+import Control.Parallel.Strategies (parMap,rdeepseq,parListN)
+import Control.Parallel (par,pseq)
+import Control.DeepSeq (rnf)
 import System.Environment (getArgs)
 import IO (hPutStrLn,stderr)
 import ResNetType
@@ -39,12 +41,15 @@ genRes n = zip rNets rVals
         rNets = map IntP gR
         rVals = map netValue rNets
 
+-- infinite list of n-sized partitions
+partNets = map genRes [1..]
+
 -- syntheize a resistor using direct resistance/conductance
 -- coversion. Gives an answer quickly, but can be suboptimal
 synthBasic iR err isPar
  | iR == 0   = NilRes
  | otherwise = rCons (nNet, rNet)
-  where (fR,rR) = if truncate (iR + err) /= truncate iR
+  where (fR,rR) = if truncate (iR + err) /= truncate (iR - err)
                    then (ceiling iR,0)
                    else properFraction iR
         nErr = err * iR / rR
@@ -71,8 +76,8 @@ synthRes r unit err = if isNothing hlpRes
          bNet = synthBasic rNorm err False
          iBound = netSize bNet
          cBound = 25
-         iCands = nubCand $ (filter (\(_,x) -> x <= rNorm).concat) $
-                            parMap rdeepseq genRes [1..min cBound iBound]
+         rCands = parListN (min cBound iBound) rdeepseq partNets `seq` take (min cBound iBound) partNets
+         iCands = nubCand $ filter (\(_,x) -> x <= rNorm) $ concat rCands
          cNext (n,vx) = let k = rNorm - vx
                             nErr = rNorm * err / k
                             nx = synthBasic k nErr False
@@ -107,7 +112,7 @@ sRHlp nR iErr bound isPar
                           (GT,GT) -> combMaybe isPar rNet nNet
           where v = if isPar then 1/vx else vx
                 xRst = nR - v
-                (wnR,nnR) = if truncate (xRst+iErr) /= truncate xRst
+                (wnR,nnR) = if truncate (xRst+iErr) /= truncate (xRst-iErr)
                              then (ceiling xRst,0)
                              else properFraction xRst
                 nErr = iErr * nR / nnR
@@ -117,8 +122,9 @@ sRHlp nR iErr bound isPar
                         (_,False) -> SRes (ResM wnR,n)
                 rNet = if nnR <= iErr
                         then Just NilRes
-                        else sRHlp (1/nnR) nErr (bound - netSize n) (not isPar)
-        pCands = nubCand.concat $ parMap rdeepseq genRes [1..bound]
+                        else sRHlp (1/nnR) nErr (bound - netSize n - wnR) (not isPar)
+        rCands = parListN bound rdeepseq partNets `seq` take bound partNets
+        pCands = nubCand $ concat rCands
         pResults = catMaybes $ parMap rdeepseq testCand pCands
         lResult = minimumBy compNet $ bNet : pResults
 
