@@ -12,6 +12,7 @@ import Data.Maybe (fromMaybe)
 --import qualified Data.ByteString.Base64 as DBB64
 --import qualified Network.URI as NU
 
+rsHeader = (header ! [ title "Resistor synthesis" ]) noHtml
 
 showGreeting err = writePage err 0 0 1e-3
 
@@ -50,12 +51,14 @@ cgiMain = do rUnitS  <- liftM (fromMaybe "0") $ getInput "rUnit"
                                let rDrawD = read rDraw
                                output $ netToSVG rDrawD rSynth rUnit
                -- present welcome screen
-              (_,True,_) -> do output $ renderHtml $ body << showGreeting (h3 << "Resistor synthesis")
-              (_,_,True) -> do output $ renderHtml $ 
+              (_,True,_) -> do output $ renderHtml $ rsHeader +++
+                                 body << showGreeting (h3 << "Resistor synthesis")
+              (_,_,True) -> do output $ renderHtml $ rsHeader +++
                                  body << showGreeting (h3 << "C'mon, you don't need better than 0.01%.")
               _          -> do let resultNet = synthRes rSynth rUnit rPrec
                                scrn <- scriptName
-                               output $ renderHtml $ body << showResult resultNet scrn rSynth rUnit rPrec
+                               output $ renderHtml $ rsHeader +++
+                                 body << showResult resultNet scrn rSynth rUnit rPrec
 
 main = do
     runCGI $ handleErrors cgiMain
