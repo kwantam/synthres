@@ -14,8 +14,6 @@ import Data.Maybe (fromMaybe)
 
 rsHeader = (header ! [ title "Resistor synthesis" ]) noHtml
 
-showGreeting err = writePage err 0 0 1e-3
-
 showResult res scrN rSynth rUnit rPrec = writePage rInfo rS rU rP
   where nVal = rU * netValue res
         nSize = netSize res
@@ -52,9 +50,9 @@ cgiMain = do rUnitS  <- liftM (fromMaybe "0") $ getInput "rUnit"
                                output $ netToSVG rDrawD rSynth rUnit
                -- present welcome screen
               (_,True,_) -> do output $ renderHtml $ rsHeader +++
-                                 body << showGreeting (h3 << "Resistor synthesis")
+                                 body << writePage (h3 << "Resistor synthesis") 0 0 1e-3
               (_,_,True) -> do output $ renderHtml $ rsHeader +++
-                                 body << showGreeting (h3 << "C'mon, you don't need better than 0.01%.")
+                                 body << writePage (h3 << "C'mon, you don't need better than 0.01%.") (fromRational rSynth :: Double) (fromRational rUnit :: Double) 1e-4
               _          -> do let resultNet = synthRes rSynth rUnit rPrec
                                scrn <- scriptName
                                output $ renderHtml $ rsHeader +++
