@@ -15,7 +15,7 @@ module ResNetSVG where
 
 import ResNetType
 import Data.List (intersperse)
-import Ratio (numerator,denominator)
+import Data.Ratio (numerator,denominator)
 
 -- datatype to pass around when drawing a resistor net
 data SVGNetwork = SVGNet
