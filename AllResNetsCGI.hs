@@ -63,7 +63,7 @@ cgiMain = do nSizeS <- liftM (fromMaybe "0") $ getInput "nSize"
              let pNum = round $ (read pNumS :: Double)
              scrnQ <- scriptName
              let scrn = takeWhile (/='?') scrnQ
-             case (rDraw /= [],nSize < 1,nSize > 11) of
+             case (rDraw /= [],nSize < 1,nSize > 12) of
                -- present welcome screen
               (True,_,_) -> do setHeader "Content-Type" "image/svg+xml"
                                let rDrawD = read rDraw
@@ -71,7 +71,7 @@ cgiMain = do nSizeS <- liftM (fromMaybe "0") $ getInput "nSize"
               (_,True,_) -> do output $ renderHtml $ rsHeader +++
                                  body << writePage (h3 << "Resistor synthesis") scrn
               (_,_,True) -> do output $ renderHtml $ rsHeader +++
-                                 body << writePage (h3 << "Number of networks grows exponentially! You really need n > 11!?") scrn
+                                 body << writePage (h3 << "Number of networks grows exponentially! You really need n > 12!?") scrn
               _          -> do let resultNets = memoizeFn1 allResNetsM nSize :: [(ResNet,Rational)]
                                output $ renderHtml $ rsHeader +++
                                  body << showResult resultNets scrn nSize pNum
