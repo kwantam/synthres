@@ -194,7 +194,7 @@ allResNetsM a n = do
     let nParts = intPartitions n
     let rParts = tail nParts
     rNets <- mapM (mapM a) rParts
-    return . map (\(x,y) -> (simplifyNet x,y)) . concat . concat $ parMap rdeepseq (map combNets . subSelect) rNets
+    return . concat . concat $ parMap rdeepseq (map combNets . subSelect) rNets
 
 -- memoize function
 memoizeFn1 fn x = evalState (tryFn x) DM.empty
