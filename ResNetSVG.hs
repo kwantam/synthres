@@ -99,9 +99,10 @@ sMargin = 10
 
 -- the head of the SVG element specifies width, height, and title
 svgHead w h t = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"" ++
-                w ++ "\" height=\"" ++ h ++ "\"><title>" ++ t ++ "</title> \
-               \<path style=\"stroke:black;stroke-width=1.5;fill:none\" \
-               \d=\"M"++show sMargin++
+                w ++ "\" height=\"" ++ h ++ "\" viewbox=\"0 0 " ++ w ++
+                " " ++ h ++ "\"><title>" ++ t ++ "</title> \
+                \<path style=\"stroke:black;stroke-width=1.5;fill:none\" \
+                \d=\"M"++show sMargin++
                 (',':(show $ sMargin + div sUHeight 2)) ++ " "
 
 -- the unit element, one resistor drawn as an SVG
