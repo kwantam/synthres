@@ -12,6 +12,8 @@ all: build/synthres build/SynthResCGI.cgi
 
 cgi: build/SynthResCGI.cgi
 
+cgi2: build/AllResNetsCGI.cgi
+
 profile : PROF_OPTS = -prof -auto-all -caf-all -fforce-recomp
 profile : clean build/synthres
 

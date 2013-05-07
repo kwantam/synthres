@@ -12,7 +12,7 @@
 
 module ResNetSynth where
 
-import Data.List (nubBy, minimumBy)
+import Data.List (nubBy, minimumBy, sortBy)
 import Data.Maybe (isNothing, fromJust, catMaybes)
 import Control.Parallel.Strategies (parMap,rdeepseq,parListN)
 import Control.Parallel (par,pseq)
@@ -125,4 +125,35 @@ sRHlp nR iErr bound isPar
         pCands = nubCand $ concat rCands
         pResults = catMaybes $ parMap rdeepseq testCand pCands
         lResult = minimumBy compNet $ bNet : pResults
+
+-- ***
+-- functions for generating every resistor network of a given size
+-- ***
+
+-- nubSort : given [(ResNet,value)], produce sorted, uniquified list
+nubSort :: [(t, Rational)] -> [(t, Rational)]
+nubSort = nubBy eqVal . sortBy cmpVal
+  where xVal f (_,x) (_,y) = f x y
+        eqVal = xVal (==)
+        cmpVal = xVal compare
+
+-- combNets given [(ResNet,value)], make all series/parallel combinations
+combNets        []  = []
+combNets ( n   :[]) = [n]
+combNets ((n,v):ns) = parCombs ++ serCombs
+  where cnRest = combNets ns
+        parCombs = map parComb cnRest
+        serCombs = map serComb cnRest
+        parComb (n2,v2) = (PRes (n,n2), inv $ inv v + inv v2)
+        inv x = 1 / x
+        serComb (n2,v2) = (SRes (n,n2), v + v2)
+
+-- subSelect - given a list of lists, generate all lists resulting from 
+--             selecting one element from each of the input lists
+subSelect    []  = [[]]
+subSelect (l:[]) = map (:[]) l
+subSelect (l:ls) = concat $ map (flip map (subSelect ls) . (:)) l
+
+-- allResNets - all resistor networks of size N
+allResNets = nubSort . concat . concat . parMap rdeepseq (map combNets) . parMap rdeepseq subSelect . parMap rdeepseq (map genRes) . intPartitions
 

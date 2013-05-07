@@ -14,7 +14,7 @@
 module Main where
 
 import System.Environment (getArgs)
-import IO (hPutStrLn,stderr)
+import System.IO (hPutStrLn,stderr)
 import ResNetType
 import ResNetSVG
 import ResNetSynth
@@ -26,8 +26,8 @@ main = do
     if length args < 2
      then putStrLn "Usage\n  synthres <unit> <resistance> [precision]"
      else do
-        let u = toRational.read $ args !! 0
-        let r = toRational.read $ args !! 1
+        let u = toRational ( read $ args !! 0 :: Double )
+        let r = toRational ( read $ args !! 1 :: Double )
         let p = if length args < 3 then 1e-3 else toRational (read $ args !! 2 :: Double)
         let g = synthRes r u p
         let v = netValue g :: Rational

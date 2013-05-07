@@ -12,7 +12,7 @@ import Data.Maybe (fromMaybe)
 --import qualified Data.ByteString.Base64 as DBB64
 --import qualified Network.URI as NU
 
-rsHeader = (header ! [ title "Resistor synthesis" ]) noHtml
+rsHeader = header . thetitle $ toHtml "Resistor synthesis"
 
 showResult res scrN rSynth rUnit rPrec = writePage rInfo rS rU rP
   where nVal = rU * netValue res
