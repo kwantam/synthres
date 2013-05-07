@@ -18,16 +18,18 @@ numResults = 150
 
 showResult res scrN nSize pNum = writePage nInfo scrN
   where resImgs = map pImgNet showNets
-        nInfo = paragraph << (show numNets ++ " possible networks: ") +++
+        nInfo = paragraph << (show numNets ++ " possible networks.") +++
+                pNumLinks +++
                 dlist << resImgs +++
-                (if numNets > numResults
-                  then paragraph << intersperse (toHtml " ") (map showNumAnchor [0..div numNets numResults])
-                  else toHtml "" ) +++
-                paragraph << ("Values: " ++
+                pNumLinks +++
+                paragraph << ("All synthesizable values: " ++
                               ( '[' : (intercalate 
                                        ", " 
                                        ( map (printf "%.5f") $ (map (fromRational . snd) res :: [Double]))) ++ "]" )) +++
                 br
+        pNumLinks = if numNets > numResults
+                     then paragraph << intersperse (toHtml " ") (map showNumAnchor [0..div numNets numResults])
+                     else toHtml ""
         showNumAnchor num = if num == pNum
                              then toHtml $ show num
                              else anchor (toHtml $ numS) ! [href hrefS]
@@ -56,7 +58,7 @@ cgiMain = do nSizeS <- liftM (fromMaybe "0") $ getInput "nSize"
              let pNum = round $ (read pNumS :: Double)
              scrnQ <- scriptName
              let scrn = takeWhile (/='?') scrnQ
-             case (rDraw /= [],nSize < 1,nSize > 10) of
+             case (rDraw /= [],nSize < 1,nSize > 9) of
                -- present welcome screen
               (True,_,_) -> do setHeader "Content-Type" "image/svg+xml"
                                let rDrawD = read rDraw
@@ -64,7 +66,7 @@ cgiMain = do nSizeS <- liftM (fromMaybe "0") $ getInput "nSize"
               (_,True,_) -> do output $ renderHtml $ rsHeader +++
                                  body << writePage (h3 << "Resistor synthesis") scrn
               (_,_,True) -> do output $ renderHtml $ rsHeader +++
-                                 body << writePage (h3 << "Number of networks grows exponentially! You really need n > 10!?") scrn
+                                 body << writePage (h3 << "Number of networks grows exponentially! You really need n > 9!?") scrn
               _          -> do let resultNets = nubSort $ memoizeFn1 allResNetsM nSize
                                output $ renderHtml $ rsHeader +++
                                  body << showResult resultNets scrn nSize pNum
