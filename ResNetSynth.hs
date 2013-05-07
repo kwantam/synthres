@@ -12,7 +12,7 @@
 
 module ResNetSynth where
 
-import Data.List (nubBy, minimumBy, sortBy)
+import Data.List (nubBy, minimumBy, sortBy, nub)
 import Data.Maybe (isNothing, fromJust, catMaybes)
 import Control.Parallel.Strategies (parMap,rdeepseq,parListN)
 import Control.Parallel (par,pseq)
@@ -143,19 +143,28 @@ nubSort = nubBy eqVal . sortBy cmpVal
 -- combNets given [(ResNet,value)], make all series/parallel combinations
 combNets        []  = []
 combNets ( n   :[]) = [n]
-combNets ((n,v):ns) = parCombs ++ serCombs
+combNets ((n,v):ns) = map (\(x,y) -> (y,x)) $ DM.toList serCombsM
   where cnRest = combNets ns
-        parCombs = map parComb cnRest
-        serCombs = map serComb cnRest
+        parCombsM = mapDMNets DM.empty  parComb cnRest
+        serCombsM = mapDMNets parCombsM serComb cnRest
         parComb (n2,v2) = (PRes (n,n2), inv $ inv v + inv v2)
         inv x = 1 / x
         serComb (n2,v2) = (SRes (n,n2), v + v2)
 
+-- helper with a map
+-- automatically nub this mapping
+mapDMNets m f    []  = m
+mapDMNets m f (l:ls) = let (n,v) = f l
+                           nM = DM.insert v n m
+                       in if DM.notMember v m
+                           then mapDMNets nM f ls
+                           else mapDMNets m f ls
+
 -- subSelect - given a list of lists, generate all lists resulting from 
 --             selecting one element from each of the input lists
 subSelect    []  = [[]]
-subSelect (l:[]) = map (:[]) l
-subSelect (l:ls) = concat $ map (flip map (subSelect ls) . (:)) l
+subSelect (l:ls) = concat $ map (flip map (subSelect ls) . (:)) $ nubBy eqVal l
+  where eqVal (_,x) (_,y) = x == y
 
 -- allResNets - all resistor networks of size N
 allResNets 0 = []
@@ -185,7 +194,7 @@ allResNetsM a n = do
     let nParts = intPartitions n
     let rParts = tail nParts
     rNets <- mapM (mapM a) rParts
-    return . map (\(x,y) -> (simplifyNet x,y)) . concat . concat $ parMap rdeepseq (map (nubSort . combNets) . subSelect) rNets
+    return . map (\(x,y) -> (simplifyNet x,y)) . concat . concat $ parMap rdeepseq (map combNets . subSelect) rNets
 
 -- memoize function
 memoizeFn1 fn x = evalState (tryFn x) DM.empty
