@@ -17,7 +17,10 @@ import Data.Maybe (isNothing, fromJust, catMaybes)
 import Control.Parallel.Strategies (parMap,rdeepseq,parListN)
 import Control.Parallel (par,pseq)
 import Control.DeepSeq (rnf)
+import qualified Data.Map as DM
+import Control.Monad.State (State(..), get, put, evalState)
 import ResNetType
+
 
 -- generate partitions of n with minimum constituent m
 genPart 1 _ = [[1]]
@@ -155,5 +158,41 @@ subSelect (l:[]) = map (:[]) l
 subSelect (l:ls) = concat $ map (flip map (subSelect ls) . (:)) l
 
 -- allResNets - all resistor networks of size N
-allResNets = nubSort . concat . concat . parMap rdeepseq (map combNets) . parMap rdeepseq subSelect . parMap rdeepseq (map genRes) . intPartitions
+allResNets 0 = []
+allResNets 1 = genRes 1
+allResNets 2 = genRes 2
+allResNets n = genRes n ++ restNets
+  where nParts = intPartitions n
+        rParts = tail nParts
+        restNets = concat . concat $ parMap rdeepseq (map combNets . subSelect . parMap rdeepseq allResNets) rParts
+
+-- allResNetsD - all resistor networks of size N, max recursion depth D
+allResNetsD 0 n = allResNets n
+allResNetsD 1 n = genRes n
+allResNetsD d n = genRes n ++ restNets
+  where nParts = intPartitions n
+        rParts = tail nParts
+        restNets = concat . concat $ 
+                    parMap rdeepseq 
+                           (map combNets . subSelect . parMap rdeepseq (allResNetsD $ d - 1))
+                           rParts
+
+-- memoized version, runs slightly faster
+allResNetsM _ 0 = return []
+allResNetsM _ 1 = return $ genRes 1
+allResNetsM _ 2 = return $ genRes 2
+allResNetsM a n = do
+    let nParts = intPartitions n
+    let rParts = tail nParts
+    rNets <- mapM (mapM a) rParts
+    return . map (\(x,y) -> (simplifyNet x,y)) . concat . concat $ parMap rdeepseq (map (nubSort . combNets) . subSelect) rNets
+
+-- memoize function
+memoizeFn1 fn x = evalState (tryFn x) DM.empty
+  where runFn x = do
+               y <- fn tryFn x
+               m <- get
+               put $ DM.insert x y m
+               return y
+        tryFn x = get >>= \m -> maybe (runFn x) return (DM.lookup x m)
 

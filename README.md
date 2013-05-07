@@ -49,6 +49,12 @@ Given that we can generate bounded sets of candidate optimizations for our resis
 
 The number of partitions of *n* grows rather fast: e^sqrt(n) per [Wolfram Mathworld](http://mathworld.wolfram.com/PartitionFunctionP.html). However, we can usually reduce this number substantially by noting that the largest-valued nontrivial partition network of *n* resistors has value less than or equal to *n*/4 (for even numbers, it is exactly *n*/4; for odd numbers, it's (*n*^2-1)/(4*n*)). Thus, if the resistance value we're trying to synthesize is greater than *n*/4, we can immediately pull out most of the resistance as a series network and only optimize the remainder. Note that this only works for *resistance* synthesis: the maximum *conductance* that can be synthesized from a partition network of *n* resistors is *n*, so the only optimization we can do is to note that we can never synthesize a larger conductance that the upper bound on the number of resistors.
 
+## Generating all networks of size N
+
+Another interesting question might be: what is every resistor value that can be synthesized, given a network of *n* unit resistors?
+
+The answer once again has to do with the integer partitions of *n*. If I recursively partition *n*, then combine every resistor into its constituent series/parallel network, at the end what must result is every possible network that can be made from arbitrarily complex series/parallel combinations of *n* resistors. The `allResNets` function in `ResNetSynth.hs` does exactly this; `AllResNetsCGI.hs` implements a CGI interface to this function. Note that computation time grows *very* quickly with *n*, at least in my quickie implementation. There's plenty of room for optimization.
+
 ## How to use it
 
 ### synthres.pl
@@ -78,6 +84,10 @@ Read this as above: 4 resistors in series with the parallel combination of two r
 synthres.hs dumps out three informational lines on stderr and then renders the network on stdout. Here's what the resulting SVG looks like for the above:
 
 ![8.7k resistor, optimized](https://github.com/kwantam/synthres/raw/master/8.7kres_optimal.gif)
+
+### CGI interfaces
+
+`SynthResCGI.hs` and `AllResNetsCGI.hs` are CGI interfaces to the generator. They present the user with the appropriate prompt and generate the network. Note that either of these can be used to render arbitrary resistor networks as SVG by passing a serialized `ResNet` datatype (see `ResNetType.hs`).
 
 ## License
 
