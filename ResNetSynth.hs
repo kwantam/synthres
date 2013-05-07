@@ -12,11 +12,9 @@
 
 module ResNetSynth where
 
-import Data.List (nubBy, minimumBy, sortBy, nub, foldl1')
+import Data.List (nubBy, minimumBy, foldl1')
 import Data.Maybe (isNothing, fromJust, catMaybes)
 import Control.Parallel.Strategies (parMap,rdeepseq,parListN)
-import Control.Parallel (par,pseq)
-import Control.DeepSeq (rnf)
 import qualified Data.Map as DM
 import Control.Monad.State (State(..), get, put, evalState)
 import ResNetType
@@ -131,13 +129,6 @@ sRHlp nR iErr bound isPar
 -- ***
 -- functions for generating every resistor network of a given size
 -- ***
-
--- nubSort : given [(ResNet,value)], produce sorted, uniquified list
-nubSort :: (Ord a) => [(t,a)] -> [(t,a)]
-nubSort = nubBy eqVal . sortBy cmpVal
-  where xVal f (_,x) (_,y) = f x y
-        eqVal = xVal (==)
-        cmpVal = xVal compare
 
 -- combNets given [(ResNet,value)], make all series/parallel combinations
 -- returns a list sorted in increasing value order
