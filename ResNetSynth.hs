@@ -12,7 +12,7 @@
 
 module ResNetSynth where
 
-import Data.List (nubBy, minimumBy, sortBy, nub)
+import Data.List (nubBy, minimumBy, sortBy, nub, foldl1')
 import Data.Maybe (isNothing, fromJust, catMaybes)
 import Control.Parallel.Strategies (parMap,rdeepseq,parListN)
 import Control.Parallel (par,pseq)
@@ -68,7 +68,6 @@ nubCand = nubBy eqVal
 -- synthesize a resistor by first generating the basic
 -- synthesis and then searching for a better solution
 -- using partitions of a bounded resistor set
-synthRes :: Rational -> Rational -> Rational -> ResNet
 synthRes r unit err = if isNothing hlpRes
                        then bNet
                        else fromJust hlpRes
@@ -134,16 +133,17 @@ sRHlp nR iErr bound isPar
 -- ***
 
 -- nubSort : given [(ResNet,value)], produce sorted, uniquified list
-nubSort :: [(t, Rational)] -> [(t, Rational)]
+nubSort :: (Ord a) => [(t,a)] -> [(t,a)]
 nubSort = nubBy eqVal . sortBy cmpVal
   where xVal f (_,x) (_,y) = f x y
         eqVal = xVal (==)
         cmpVal = xVal compare
 
 -- combNets given [(ResNet,value)], make all series/parallel combinations
+-- returns a list sorted in increasing value order
 combNets        []  = []
 combNets ( n   :[]) = [n]
-combNets ((n,v):ns) = map (\(x,y) -> (y,x)) $ DM.toList serCombsM
+combNets ((n,v):ns) = map (\(x,y) -> (y,x)) $ DM.toAscList serCombsM
   where cnRest = combNets ns
         parCombsM = mapDMNets DM.empty  parComb cnRest
         serCombsM = mapDMNets parCombsM serComb cnRest
@@ -166,27 +166,42 @@ subSelect    []  = [[]]
 subSelect (l:ls) = concat $ map (flip map (subSelect ls) . (:)) $ nubBy eqVal l
   where eqVal (_,x) (_,y) = x == y
 
+-- all of this should be refactored
+-- to rid it of its boilerplate
+-- but I am lazy
+-- so it is not
+-- for now
+
 -- allResNets - all resistor networks of size N
+-- use maps to combine results, as this is a fast way of merging with uniqueness and sorting
 allResNets 0 = []
 allResNets 1 = genRes 1
 allResNets 2 = genRes 2
-allResNets n = genRes n ++ restNets
+allResNets n = restNets
   where nParts = intPartitions n
         rParts = tail nParts
-        restNets = concat . concat $ parMap rdeepseq (map combNets . subSelect . parMap rdeepseq allResNets) rParts
+        restNetsLL = parMap rdeepseq (map combNets . subSelect . parMap rdeepseq allResNets) rParts
+        nets2Map = DM.fromList . map (\(x,y) -> (y,x))
+        genNets = nets2Map $ genRes n
+        restNetsL = genNets : map nets2Map ( concat restNetsLL )
+        restNetsM = foldl1' DM.union restNetsL
+        restNets = map (\(x,y) -> (y,x)) $ DM.toAscList restNetsM
 
 -- allResNetsD - all resistor networks of size N, max recursion depth D
 allResNetsD 0 n = allResNets n
 allResNetsD 1 n = genRes n
-allResNetsD d n = genRes n ++ restNets
+allResNetsD d n = restNets
   where nParts = intPartitions n
         rParts = tail nParts
-        restNets = concat . concat $ 
-                    parMap rdeepseq 
-                           (map combNets . subSelect . parMap rdeepseq (allResNetsD $ d - 1))
-                           rParts
+        restNetsLL = parMap rdeepseq (map combNets . subSelect . parMap rdeepseq (allResNetsD $ pred d)) rParts
+        nets2Map = DM.fromList . map (\(x,y) -> (y,x))
+        genNets = nets2Map $ genRes n
+        restNetsL = genNets : map nets2Map ( concat restNetsLL )
+        restNetsM = foldl1' DM.union restNetsL
+        restNets = map (\(x,y) -> (y,x)) $ DM.toAscList restNetsM
 
 -- memoized version, runs slightly faster
+-- use maps to combine results, as this is a fast way of merging with uniqueness and sorting
 allResNetsM _ 0 = return []
 allResNetsM _ 1 = return $ genRes 1
 allResNetsM _ 2 = return $ genRes 2
@@ -194,7 +209,12 @@ allResNetsM a n = do
     let nParts = intPartitions n
     let rParts = tail nParts
     rNets <- mapM (mapM a) rParts
-    return . concat . concat $ parMap rdeepseq (map combNets . subSelect) rNets
+    let nets2Map = DM.fromList . map (\(x,y) -> (y,x))
+    let genNets = nets2Map $ genRes n
+    let restNetsLL = concat $ parMap rdeepseq (map combNets . subSelect) rNets
+    let restNetsL = genNets : map nets2Map restNetsLL
+    let restNetsM = foldl1' DM.union restNetsL
+    return $ map (\(x,y) -> (y,x)) $ DM.toAscList restNetsM
 
 -- memoize function
 memoizeFn1 fn x = evalState (tryFn x) DM.empty
