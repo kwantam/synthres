@@ -53,7 +53,9 @@ The number of partitions of *n* grows rather fast: e^sqrt(n) per [Wolfram Mathwo
 
 Another interesting question might be: what is every resistor value that can be synthesized, given a network of *n* unit resistors?
 
-The answer once again has to do with the integer partitions of *n*. If I recursively partition *n*, then collapse the resulting partition tree both in series and in parallel (generating a tree of trees, as it were), at the end what must result is every possible network that can be made from arbitrarily complex series/parallel combinations of *n* resistors. The `allResNets` function in `ResNetSynth.hs` does exactly this; `AllResNetsCGI.hs` implements a CGI interface to this function. Note that computation time grows *very* quickly with *n*, at least in my crappy implementation. There's plenty of room for optimization, if you wish to hack on it :)
+The answer once again has to do with the integer partitions of *n*. Imagine that each summand *m_i* in a particular partition of *n* represents all all possible networks of size *m_i*. Then I can recombine the *m_i* networks by generating all possible series/parallel combinations of those networks. The result is a set of networks of size *n*. Repeating this operation for all partitions of *n* gives me all the possible networks.
+
+In other words, we recursively partition every network into its subnetworks, with base cases the networks of size 1 and 2. Then, having generated this partition tree, we note that every branch point in the tree represents a set of possible series and parallel combinations; applying all possible series/parallel merge operations to the tree, we get all possible resistor networks of a given size.
 
 ## How to use it
 
