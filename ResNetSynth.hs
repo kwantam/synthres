@@ -12,11 +12,11 @@
 
 module ResNetSynth where
 
-import Data.List (nubBy, minimumBy, foldl1')
+import Data.List (nubBy, minimumBy, foldl', foldl1')
 import Data.Maybe (isNothing, fromJust, catMaybes)
 import Control.Parallel.Strategies (parMap,rdeepseq,parListN)
 import qualified Data.Map as DM
-import Control.Monad.State (State(..), get, put, evalState)
+import Control.Monad.State (State(..), get, put, runState)
 import ResNetType
 
 
@@ -208,7 +208,7 @@ allResNetsM a n = do
     return $ map (\(x,y) -> (y,x)) $ DM.toAscList restNetsM
 
 -- memoize function
-memoizeFn1 fn x = evalState (tryFn x) DM.empty
+memoizeFn1' fn st x = runState (tryFn x) st
   where runFn x = do
                y <- fn tryFn x
                m <- get
@@ -216,3 +216,16 @@ memoizeFn1 fn x = evalState (tryFn x) DM.empty
                return y
         tryFn x = get >>= \m -> maybe (runFn x) return (DM.lookup x m)
 
+memoizeFn1 fn = fst . memoizeFn1' fn DM.empty 
+
+-- memoize the same function with different arguments, keeping the same memo for all of them
+memoizeFnN fn ls = mFHlp ls [] DM.empty
+  where mFHlp    []  os st = (os,st)
+        mFHlp (l:ls) os st = mFHlp ls (o:os) s
+          where (o,s) = memoizeFn1' fn st l
+
+-- from size 1 to X, all networks
+allResUpTo x = map swapTup $ DM.toAscList allM
+  where os = fst $ memoizeFnN allResNetsM [1..x]
+        allM = foldl' (\m x -> flip DM.union m $ DM.fromList $ map swapTup x) DM.empty os
+        swapTup (x,y) = (y,x)

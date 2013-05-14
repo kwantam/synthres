@@ -84,7 +84,7 @@ cgiMain = do nSizeS <- liftM (fromMaybe "0") $ getInput "nSize"
                                  body << writePage (h3 << "Resistor synthesis") scrn
               (_,_,True) -> do output $ renderHtml $ rsHeader +++
                                  body << writePage (h3 << "Number of networks grows exponentially! You really need n > 12!?") scrn
-              _          -> do let resultNets = memoizeFn1 allResNetsM nSize :: [(ResNet,Rational)]
+              _          -> do let resultNets = allResUpTo nSize :: [(ResNet,Rational)]
                                output $ renderHtml $ rsHeader +++
                                  body << showResult resultNets scrn nSize pNum
 
