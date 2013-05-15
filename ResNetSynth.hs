@@ -1,3 +1,4 @@
+{-# LANGUAGE NoMonomorphismRestriction #-}
 {--
 # 
 # this file is part of synthres
@@ -34,12 +35,13 @@ genPart n m = [n] : mrst
 intPartitions = (flip genPart) 1
 
 -- turn integer partitions into net-value pairs
-genRes n = zip rNets rVals
+genRes n = zip rVals rNets
   where gR = intPartitions n
         rNets = map IntP gR
         rVals = map netValue rNets
 
 -- infinite list of n-sized partitions
+partNets :: [[(Rational,ResNet)]]
 partNets = map genRes [1..]
 
 -- syntheize a resistor using direct resistance/conductance
@@ -61,10 +63,11 @@ synthBasic iR err isPar
                 else synthBasic (1/rR) nErr (not isPar)
 
 -- nubCand is used in synthRes and sRHlp
-nubCand = map swapTup . DM.toAscList . nFromL . map swapTup 
-  where swapTup (x,y) = (y,x)
-        nFromL = DM.fromListWith (flip const)
+nubCand = DM.toAscList . DM.fromListWith (flip const)
 
+-- when doing synthesis, use this as a hard upper
+-- bound for the size of allResNets we're willing
+-- to ask for
 cBoundAll = 12
 
 -- synthesize a resistor by first generating the basic
@@ -79,35 +82,38 @@ synthRes r unit err = if isNothing hlpRes
          iBound = netSize bNet
          cBound1 = 25
          rCands1 = parListN (min cBound1 iBound) rdeepseq partNets `seq` take (min cBound1 iBound) partNets
-         (rCands2,st) = allResUpTo' DM.empty $ min cBoundAll iBound
-         iCands = nubCand . filter (\(_,x) -> x <= rNorm) . concat $ rCands2 : rCands1
-         cNext (n,vx) = let k = rNorm - vx
+         --(rCands2,st) = allResUpTo' DM.empty $ min cBoundAll iBound
+         --iCands = nubCand . filter ((rNorm>=) . fst) . concat $ rCands2 : rCands1
+         iCands = nubCand . filter ((rNorm>=) . fst) . concat $ rCands1
+         cNext (vx,n) = let k = rNorm - vx
                             nErr = rNorm * err / k
                             nx = synthBasic k nErr False
                          in netSize n + netSize nx
          nVals = parMap rdeepseq cNext iCands
          kBound = minimum $ iBound : nVals
-         hlpRes = sRHlp rNorm err kBound False st
+         hlpRes = sRHlp rNorm err kBound False --st
 -- note: we try to estimate a tight bound by taking one step of
 -- the algorithm blindly and finding the best solution so far
 -- this lets us have some chance of converging even for really
 -- annoying ones like synthRes 999 1000 1e-6
 
 -- helper for synthRes
-sRHlp nR iErr bound isPar st
+sRHlp nR iErr bound isPar --st
   | bound <= 0 = Nothing                -- can't make resistance from nothing
   | nR > fromIntegral bound = Nothing   -- not enough resistors to make nR
-  | nR == 0    = Just NilRes            -- a zero R or G is just NilRes
+  | iErr >= 1 = Just NilRes             -- good enough (iErr >= 100% of nR)
+  | nR == 0 = Just NilRes               -- a zero R or G is just NilRes
   | (not isPar) &&                      -- The largest partition resistance
     nR >= 1 + fromIntegral bound / 4 =  -- is bound/4, so just put any excess
       let nComb = floor $ nR - fromIntegral bound / 4 -- in series; makes bound
           nCombR = fromIntegral nComb   -- small fast, which is a big speedup.
           nnR = nR - nCombR             -- This doesn't work when isPar because
           nErr = iErr * nR / nnR        -- the largest conductance equals bound.
-      in combMaybe False (sRHlp nnR nErr (bound - nComb) False st) (ResM nComb)
+      --in combMaybe False (sRHlp nnR nErr (bound - nComb) False st) (ResM nComb)
+      in combMaybe False (sRHlp nnR nErr (bound - nComb) False) (ResM nComb)
   | otherwise  = if netSize lResult > bound then Nothing else Just lResult
   where bNet = synthBasic nR iErr isPar
-        testCand (n,vx) = case (compare (nR*(1+iErr)) v,compare (nR*(1-iErr)) v) of
+        testCand (vx,n) = case (compare (nR*(1+iErr)) v,compare (nR*(1-iErr)) v) of
                           (EQ,_ ) -> Just n
                           (_ ,EQ) -> Just n
                           (GT,LT) -> Just n
@@ -125,10 +131,11 @@ sRHlp nR iErr bound isPar st
                         (_,False) -> SRes (ResM wnR,n)
                 rNet = if nnR <= (iErr * xRst)
                         then Just NilRes
-                        else sRHlp (1/nnR) nErr (bound - netSize n - wnR) (not isPar) st'
+                        else sRHlp (1/nnR) nErr (bound - netSize n - wnR) (not isPar) --st'
         rCands1 = parListN bound rdeepseq partNets `seq` take bound partNets
-        (rCands2,st') = allResUpTo' st $ min cBoundAll bound
-        pCands = nubCand . concat $ rCands2 : rCands1
+        --(rCands2,st') = allResUpTo' st $ min cBoundAll bound
+        --pCands = nubCand . concat $ rCands2 : rCands1
+        pCands = nubCand . concat $ rCands1
         pResults = catMaybes $ parMap rdeepseq testCand pCands
         lResult = minimumBy compNet $ bNet : pResults
 
@@ -136,32 +143,29 @@ sRHlp nR iErr bound isPar st
 -- functions for generating every resistor network of a given size
 -- ***
 
--- combNets given [(ResNet,value)], make all series/parallel combinations
+-- combNets given [(value,ResNet)], make all series/parallel combinations
 -- returns a list sorted in increasing value order
 combNets        []  = []
 combNets ( n   :[]) = [n]
-combNets ((n,v):ns) = map (\(x,y) -> (y,x)) $ DM.toAscList serCombsM
+combNets ((v,n):ns) = DM.toAscList serCombsM
   where cnRest = combNets ns
         parCombsM = mapDMNets DM.empty  parComb cnRest
         serCombsM = mapDMNets parCombsM serComb cnRest
-        parComb (n2,v2) = (PRes (n,n2), inv $ inv v + inv v2)
+        parComb (v2,n2) = (inv $ inv v + inv v2, PRes (n,n2))
         inv x = 1 / x
-        serComb (n2,v2) = (SRes (n,n2), v + v2)
+        serComb (v2,n2) = (v + v2, SRes (n,n2))
 
 -- helper with a map
 -- automatically nub this mapping
 mapDMNets m f    []  = m
-mapDMNets m f (l:ls) = let (n,v) = f l
-                           nM = DM.insert v n m
-                       in if DM.notMember v m
-                           then mapDMNets nM f ls
-                           else mapDMNets m f ls
+mapDMNets m f (l:ls) = mapDMNets nM f ls
+  where (v,n) = f l
+        nM = DM.insertWith (flip const) v n m
 
 -- subSelect - given a list of lists, generate all lists resulting from 
 --             selecting one element from each of the input lists
 subSelect    []  = [[]]
-subSelect (l:ls) = concat $ map (flip map (subSelect ls) . (:)) $ nubBy eqVal l
-  where eqVal (_,x) (_,y) = x == y
+subSelect (l:ls) = concat $ map (flip map (subSelect ls) . (:)) $ nubCand l
 
 -- all of this should be refactored
 -- to rid it of its boilerplate
@@ -178,11 +182,10 @@ allResNets n = restNets
   where nParts = intPartitions n
         rParts = tail nParts
         restNetsLL = parMap rdeepseq (map combNets . subSelect . parMap rdeepseq allResNets) rParts
-        nets2Map = DM.fromList . map (\(x,y) -> (y,x))
-        genNets = nets2Map $ genRes n
-        restNetsL = genNets : map nets2Map ( concat restNetsLL )
+        genNets = DM.fromList $ genRes n
+        restNetsL = genNets : map DM.fromList ( concat restNetsLL )
         restNetsM = foldl1' DM.union restNetsL
-        restNets = map (\(x,y) -> (y,x)) $ DM.toAscList restNetsM
+        restNets = DM.toAscList restNetsM
 
 -- allResNetsD - all resistor networks of size N, max recursion depth D
 allResNetsD 0 n = allResNets n
@@ -191,11 +194,10 @@ allResNetsD d n = restNets
   where nParts = intPartitions n
         rParts = tail nParts
         restNetsLL = parMap rdeepseq (map combNets . subSelect . parMap rdeepseq (allResNetsD $ pred d)) rParts
-        nets2Map = DM.fromList . map (\(x,y) -> (y,x))
-        genNets = nets2Map $ genRes n
-        restNetsL = genNets : map nets2Map ( concat restNetsLL )
+        genNets = DM.fromList $ genRes n
+        restNetsL = genNets : map DM.fromList ( concat restNetsLL )
         restNetsM = foldl1' DM.union restNetsL
-        restNets = map (\(x,y) -> (y,x)) $ DM.toAscList restNetsM
+        restNets = DM.toAscList restNetsM
 
 -- memoized version, runs slightly faster
 -- use maps to combine results, as this is a fast way of merging with uniqueness and sorting
@@ -206,12 +208,11 @@ allResNetsM a n = do
     let nParts = intPartitions n
     let rParts = tail nParts
     rNets <- mapM (mapM a) rParts
-    let nets2Map = DM.fromList . map (\(x,y) -> (y,x))
-    let genNets = nets2Map $ genRes n
+    let genNets = DM.fromList $ genRes n
     let restNetsLL = concat $ parMap rdeepseq (map combNets . subSelect) rNets
-    let restNetsL = genNets : map nets2Map restNetsLL
+    let restNetsL = genNets : map DM.fromList restNetsLL
     let restNetsM = foldl1' DM.union restNetsL
-    return $ map (\(x,y) -> (y,x)) $ DM.toAscList restNetsM
+    return $ DM.toAscList restNetsM
 
 -- memoize function
 memoizeFn1' fn st x = runState (tryFn x) st
@@ -231,11 +232,10 @@ memoizeFnN st fn ls = mFHlp ls [] st
           where (o,s) = memoizeFn1' fn st l
 
 -- from size 1 to X, all networks
-allResUpTo :: (RealFrac t, Control.DeepSeq.NFData t) => Int -> [(ResNet,t)]
+allResUpTo :: (RealFrac t, Control.DeepSeq.NFData t) => Int -> [(t,ResNet)]
 allResUpTo = fst . allResUpTo' DM.empty
 
 -- allRes with explicitly passed-in and passed-out memo pad
-allResUpTo' st x = (map swapTup $ DM.toAscList allM,st')
+allResUpTo' st x = (DM.toAscList allM,st')
   where (os,st') = memoizeFnN st allResNetsM [1..x]
-        allM = foldl' (\m x -> flip DM.union m $ DM.fromList $ map swapTup x) DM.empty os
-        swapTup (x,y) = (y,x)
+        allM = foldl' (\m x -> flip DM.union m $ DM.fromList x) DM.empty os

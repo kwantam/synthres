@@ -37,8 +37,14 @@ showResult res scrN nSize pNum = writePage nInfo scrN
                 paragraph << ("All synthesizable values: " ++
                               ( '[' : (intercalate 
                                        ", " 
-                                       ( map (printf "%.5f") $ (map (fromRational . snd) res :: [Double]))) ++ "]" )) +++
+                                       ( map (showRat . fst) res )) ++ "]" )) +++
                 br
+        showRat v = num ++ den
+          where num = show $ numerator v
+                dV = denominator v
+                den = if dV == 1
+                       then []
+                       else '/' : show dV
         lastResult = let pn1R = (pNum+1)*numResults
                      in if pn1R > numNets then numNets else pn1R
         sResults = if numNets > numResults
@@ -54,11 +60,9 @@ showResult res scrN nSize pNum = writePage nInfo scrN
                 hrefS = scrN ++ "?nSize=" ++ (show nSize) ++ "&pNum=" ++ numS
         showNets = take numResults $ drop (numResults * pNum) res
         numNets = length res
-        pImgNet (net,value) = [ showValue value , ddef << image ! [src $ scrN ++ "?rDraw=" ++ (show $ simplifyNet net)] ]
+        pImgNet (value,net) = [ showValue value , ddef << image ! [src $ scrN ++ "?rDraw=" ++ (show $ simplifyNet net)] ]
         showValue value = dterm << toHtml (
-                                    (show $ numerator value) ++ 
-                                    "/" ++ 
-                                    (show $ denominator value) ++ 
+                                    (showRat value) ++ 
                                     "  (" ++ 
                                     (printf "%.5f" $ (fromRational value :: Double)) ++ 
                                     ")" )
@@ -84,7 +88,7 @@ cgiMain = do nSizeS <- liftM (fromMaybe "0") $ getInput "nSize"
                                  body << writePage (h3 << "Resistor synthesis") scrn
               (_,_,True) -> do output $ renderHtml $ rsHeader +++
                                  body << writePage (h3 << "Number of networks grows exponentially! You really need n > 12!?") scrn
-              _          -> do let resultNets = allResUpTo nSize :: [(ResNet,Rational)]
+              _          -> do let resultNets = allResUpTo nSize :: [(Rational,ResNet)]
                                output $ renderHtml $ rsHeader +++
                                  body << showResult resultNets scrn nSize pNum
 
