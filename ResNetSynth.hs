@@ -47,8 +47,8 @@ partNets = map genRes [1..]
 synthBasic iR err isPar
  | iR == 0   = NilRes
  | otherwise = rCons (nNet, rNet)
-  where (fR,rR) = if truncate (iR + err) /= truncate (iR - err)
-                   then (ceiling iR,0)
+  where (fR,rR) = if truncate (iR*(1+err)) /= truncate (iR*(1-err))
+                   then (round iR,0)
                    else properFraction iR
         nErr = err * iR / rR
         nNet = case (fR,isPar) of
@@ -107,7 +107,7 @@ sRHlp nR iErr bound isPar st
       in combMaybe False (sRHlp nnR nErr (bound - nComb) False st) (ResM nComb)
   | otherwise  = if netSize lResult > bound then Nothing else Just lResult
   where bNet = synthBasic nR iErr isPar
-        testCand (n,vx) = case (compare (nR+iErr) v,compare (nR-iErr) v) of
+        testCand (n,vx) = case (compare (nR*(1+iErr)) v,compare (nR*(1-iErr)) v) of
                           (EQ,_ ) -> Just n
                           (_ ,EQ) -> Just n
                           (GT,LT) -> Just n
@@ -115,8 +115,8 @@ sRHlp nR iErr bound isPar st
                           (GT,GT) -> combMaybe isPar rNet nNet
           where v = if isPar then 1/vx else vx
                 xRst = nR - v
-                (wnR,nnR) = if truncate (xRst+iErr) /= truncate (xRst-iErr)
-                             then (ceiling xRst,0)
+                (wnR,nnR) = if truncate (xRst*(1+iErr)) /= truncate (xRst*(1-iErr))
+                             then (round xRst,0)
                              else properFraction xRst
                 nErr = iErr * nR / nnR
                 nNet = case (wnR,isPar) of
