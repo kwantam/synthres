@@ -82,23 +82,22 @@ synthRes r unit err = if isNothing hlpRes
          iBound = netSize bNet
          cBound1 = 25
          rCands1 = parListN (min cBound1 iBound) rdeepseq partNets `seq` take (min cBound1 iBound) partNets
-         --(rCands2,st) = allResUpTo' DM.empty $ min cBoundAll iBound
-         --iCands = nubCand . filter ((rNorm>=) . fst) . concat $ rCands2 : rCands1
-         iCands = nubCand . filter ((rNorm>=) . fst) . concat $ rCands1
+         (rCands2,st) = allResUpTo' DM.empty $ min cBoundAll iBound
+         iCands = nubCand . filter ((rNorm>=) . fst) . concat $ rCands2 : rCands1
          cNext (vx,n) = let k = rNorm - vx
                             nErr = rNorm * err / k
                             nx = synthBasic k nErr False
                          in netSize n + netSize nx
          nVals = parMap rdeepseq cNext iCands
          kBound = minimum $ iBound : nVals
-         hlpRes = sRHlp rNorm err kBound False --st
+         hlpRes = sRHlp rNorm err kBound False st
 -- note: we try to estimate a tight bound by taking one step of
 -- the algorithm blindly and finding the best solution so far
 -- this lets us have some chance of converging even for really
 -- annoying ones like synthRes 999 1000 1e-6
 
 -- helper for synthRes
-sRHlp nR iErr bound isPar --st
+sRHlp nR iErr bound isPar st
   | bound <= 0 = Nothing                -- can't make resistance from nothing
   | nR > fromIntegral bound = Nothing   -- not enough resistors to make nR
   | iErr >= 1 = Just NilRes             -- good enough (iErr >= 100% of nR)
@@ -109,8 +108,7 @@ sRHlp nR iErr bound isPar --st
           nCombR = fromIntegral nComb   -- small fast, which is a big speedup.
           nnR = nR - nCombR             -- This doesn't work when isPar because
           nErr = iErr * nR / nnR        -- the largest conductance equals bound.
-      --in combMaybe False (sRHlp nnR nErr (bound - nComb) False st) (ResM nComb)
-      in combMaybe False (sRHlp nnR nErr (bound - nComb) False) (ResM nComb)
+      in combMaybe False (sRHlp nnR nErr (bound - nComb) False st) (ResM nComb)
   | otherwise  = if netSize lResult > bound then Nothing else Just lResult
   where bNet = synthBasic nR iErr isPar
         testCand (vx,n) = case (compare (nR*(1+iErr)) v,compare (nR*(1-iErr)) v) of
@@ -131,11 +129,10 @@ sRHlp nR iErr bound isPar --st
                         (_,False) -> SRes (ResM wnR,n)
                 rNet = if nnR <= (iErr * xRst)
                         then Just NilRes
-                        else sRHlp (1/nnR) nErr (bound - netSize n - wnR) (not isPar) --st'
+                        else sRHlp (1/nnR) nErr (bound - netSize n - wnR) (not isPar) st'
         rCands1 = parListN bound rdeepseq partNets `seq` take bound partNets
-        --(rCands2,st') = allResUpTo' st $ min cBoundAll bound
-        --pCands = nubCand . concat $ rCands2 : rCands1
-        pCands = nubCand . concat $ rCands1
+        (rCands2,st') = allResUpTo' st $ min cBoundAll bound
+        pCands = nubCand . concat $ rCands2 : rCands1
         pResults = catMaybes $ parMap rdeepseq testCand pCands
         lResult = minimumBy compNet $ bNet : pResults
 
